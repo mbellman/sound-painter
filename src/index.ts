@@ -1,9 +1,7 @@
-import UI from './UI';
+import SoundPainter from './SoundPainter';
 import AudioFile from './AudioFile';
 import './page.scss';
 
-new UI();
+const painter = new SoundPainter();
 
-const audio = new AudioFile('assets/medallion-get.mp3');
-
-audio.play();
+painter.play(new AudioFile('assets/medallion-get.mp3'));
