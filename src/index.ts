@@ -4,6 +4,6 @@ import './page.scss';
 
 new UI();
 
-const audio = new AudioFile('medallion-get.mp3');
+const audio = new AudioFile('assets/medallion-get.mp3');
 
 audio.play();

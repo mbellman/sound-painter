@@ -7,6 +7,6 @@ module.exports = merge(baseConfig, {
   devServer: {
     port: 1234,
     open: true,
-    contentBase: path.join(__dirname, './assets')
+    contentBase: path.join(__dirname, './public')
   }
 });
