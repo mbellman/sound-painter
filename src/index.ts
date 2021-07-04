@@ -1,5 +1,5 @@
 import SoundPainter from './SoundPainter';
-import AudioFile from './AudioFile';
+import AudioFile from './audio/AudioFile';
 import './page.scss';
 
 const painter = new SoundPainter();

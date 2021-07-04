@@ -1,27 +1,4 @@
-/**
- * @internal
- */
-class AudioCore {
-  private static context: AudioContext = new AudioContext();
-
-  public static createBufferSource(): AudioBufferSourceNode {
-    return AudioCore.context.createBufferSource();
-  }
-
-  public static decodeAudioData(audioData: ArrayBuffer, handler: (buffer: AudioBuffer) => void): void {
-    AudioCore.context.decodeAudioData(audioData, handler);
-  }
-
-  public static play(node: AudioBufferSourceNode, offset?: number): void {
-    node.connect(AudioCore.context.destination);
-    node.start(0, offset);
-  }
-
-  public static stop(node: AudioBufferSourceNode): void {
-    node.stop();
-    node.disconnect();
-  }
-}
+import AudioCore from './AudioCore';
 
 /**
  * @internal
@@ -38,7 +15,8 @@ export default class AudioFile {
   private elapsedTime: number = 0;
   private isLoaded: boolean = false;
   private lastPlayStartTime: number = 0;
-  private node: AudioBufferSourceNode;
+  private passThroughNode: AudioNode;
+  private sourceNode: AudioBufferSourceNode;
   private startPlayingOnLoad: boolean = false;
   private state: SoundState = SoundState.SOUND_STOPPED;
 
@@ -52,6 +30,12 @@ export default class AudioFile {
     return this.state === SoundState.SOUND_PLAYING;
   }
 
+  public connect(node: AudioNode): AudioFile {
+    this.passThroughNode = node;
+
+    return this;
+  }
+
   public play = () => {
     if (!this.isLoaded) {
       this.startPlayingOnLoad = true;
@@ -59,12 +43,12 @@ export default class AudioFile {
       return;
     }
 
-    if (this.state === SoundState.SOUND_STOPPED || !this.node) {
+    if (this.state === SoundState.SOUND_STOPPED || !this.sourceNode) {
       this.resetNode();
     }
 
     if (this.state !== SoundState.SOUND_PLAYING) {
-      AudioCore.play(this.node, this.elapsedTime);
+      AudioCore.play(this.sourceNode, this.elapsedTime, this.passThroughNode);
 
       this.lastPlayStartTime = Date.now();
       this.state = SoundState.SOUND_PLAYING;
@@ -72,7 +56,7 @@ export default class AudioFile {
   };
 
   public pause(): void {
-    AudioCore.stop(this.node);
+    AudioCore.stop(this.sourceNode);
 
     this.resetNode();
 
@@ -87,7 +71,7 @@ export default class AudioFile {
 
   public stop(): void {
     if (this.state === SoundState.SOUND_PLAYING) {
-      AudioCore.stop(this.node);
+      AudioCore.stop(this.sourceNode);
     }
 
     this.onEnded();
@@ -120,13 +104,13 @@ export default class AudioFile {
   }
 
   private resetNode(): void {
-    if (this.node) {
-      this.node.removeEventListener('ended', this.onEnded);
+    if (this.sourceNode) {
+      this.sourceNode.removeEventListener('ended', this.onEnded);
     }
 
-    this.node = AudioCore.createBufferSource();
-    this.node.buffer = this.audioBuffer;
+    this.sourceNode = AudioCore.createBufferSource();
+    this.sourceNode.buffer = this.audioBuffer;
 
-    this.node.addEventListener('ended', this.onEnded);
+    this.sourceNode.addEventListener('ended', this.onEnded);
   }
 }
