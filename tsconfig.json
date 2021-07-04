@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
-    "sourceMap": false
+    "sourceMap": false,
+    "target": "es5",
+    "noEmitOnError": true,
+    "noImplicitReturns": true
   }
 }
