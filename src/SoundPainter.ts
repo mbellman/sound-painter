@@ -37,6 +37,29 @@ export default class SoundPainter {
     }, 100);
   }
 
+  private getNoteColor(note: number, loudness: number): string {
+    const tone = note / 88;
+    const volume = loudness / 255;
+
+    let r = Math.sin(tone * Math.PI * 3);
+    let g = Math.sin(0.5 * Math.PI + tone * Math.PI * 3);
+    let b = Math.sin(Math.PI + tone * Math.PI * 3);
+
+    r = Math.round(clamp(r * 255, 0, 255) * volume);
+    g = Math.round(clamp(g * 255, 0, 255) * volume);
+    b = Math.round(clamp(b * 255, 0, 255) * volume);
+
+    let rHex = Number.isNaN(r) ? '0' : r.toString(16);
+    let gHex = Number.isNaN(g) ? '0' : g.toString(16);
+    let bHex = Number.isNaN(b) ? '0' : b.toString(16);
+
+    rHex = rHex.length === 1 ? `0${rHex}` : rHex;
+    gHex = gHex.length === 1 ? `0${gHex}` : gHex;
+    bHex = bHex.length === 1 ? `0${bHex}` : bHex;
+
+    return `#${rHex}${gHex}${bHex}`;
+  }
+
   private onWindowResize(): void {
     this.updateCanvasSizes();
   }
@@ -46,27 +69,42 @@ export default class SoundPainter {
 
     const data = this.analyser.getData();
 
-    this.visibleCanvas.clear();
+    // this.visibleCanvas.clear();
 
     const notes = new Array(88);
 
     notes.fill(0);
 
     for (let i = 0; i < data.length; i++) {
-      const frequency = i / data.length * AudioCore.SAMPLE_RATE;
-      const note = Math.round(12 * Math.log2(frequency / 440));
-      const index = clamp(note, 0, 87);
+      const frequency = i / data.length * AudioCore.SAMPLE_RATE * 0.5;
+      const key = Math.round(12 * Math.log2(frequency / 440));
+      const index = clamp(key, 0, 87);
 
-      notes[index] = data[i];// notes[index] > 0 ? (notes[index] + data[i]) / 2.0 : data[i];
+      if (key >= 0 && key <= 87) {
+        notes[index] = data[i];
+      }
+    }
+
+    const highestNote = Math.max(...notes);
+
+    for (let i = 0; i < notes.length; i++) {
+      notes[i] *= Math.pow(notes[i] / highestNote, 2);
+      notes[i] *= clamp(0.2 + i / notes.length, 0, 1);
     }
 
     for (let i = 0; i < notes.length; i++) {
       const height = window.innerHeight / notes.length;
       const y = (notes.length - i - 1) * height;
-      const x = Math.floor(400 * (1.0 - notes[i] / 256)) + (window.innerWidth - 400);
-      const width = window.innerWidth - x;
+      const brightness = Math.round(255 * notes[i] / 255);
+      const color = this.getNoteColor(i, notes[i]);
 
-      this.visibleCanvas.rectangle('#fa0', x, y, width, height);
+      this.visibleCanvas.circle(color, this.currentXOffset, y, Math.round(brightness / 10));
+    }
+
+    this.currentXOffset += 10;
+
+    if (this.currentXOffset > window.innerWidth) {
+      this.currentXOffset = 0;
     }
   }
 

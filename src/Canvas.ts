@@ -9,6 +9,14 @@ export default class Canvas {
     this.resize(width, height);
   }
 
+  public circle(color: string, x: number, y: number, radius: number): void {
+    this.ctx.fillStyle = color;
+
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius, 0, 2.0 * Math.PI);
+    this.ctx.fill();
+  }
+
   public clear(): void {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
