@@ -2,6 +2,7 @@
   "compilerOptions": {
     "sourceMap": false,
     "target": "es5",
+    "lib": ["ES2016", "DOM"],
     "noEmitOnError": true,
     "noImplicitReturns": true
   }

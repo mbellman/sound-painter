@@ -4,4 +4,4 @@ import './page.scss';
 
 const painter = new SoundPainter();
 
-painter.play(new AudioFile('assets/medallion-get.mp3'));
+// painter.play(new AudioFile('assets/medallion-get.mp3'));

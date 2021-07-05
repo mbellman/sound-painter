@@ -11,6 +11,7 @@ export default class SoundPainter {
   private visibleCanvas: Canvas;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
+  private renderInterval: number = null;
 
   constructor() {
     this.analyser = new Analyser();
@@ -20,6 +21,9 @@ export default class SoundPainter {
     this.updateCanvasSizes();
 
     window.addEventListener('resize', () => this.onWindowResize());
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => this.onFileDrop(e));
+
     document.body.appendChild(this.visibleCanvas.getElement());
   }
 
@@ -29,21 +33,24 @@ export default class SoundPainter {
     }
 
     this.audio = audioFile;
+    this.currentXOffset = 0;
 
+    window.clearInterval(this.renderInterval);
     this.audio.connect(this.analyser.getNode()).play();
+    this.visibleCanvas.clear();
 
-    setInterval(() => {
+    this.renderInterval = window.setInterval(() => {
       this.render();
-    }, 100);
+    }, 20);
   }
 
   private getNoteColor(note: number, loudness: number): string {
     const tone = note / 88;
-    const volume = loudness / 255;
+    const volume = clamp(loudness / 255, 0.3, 1);
 
-    let r = Math.sin(tone * Math.PI * 3);
-    let g = Math.sin(0.5 * Math.PI + tone * Math.PI * 3);
-    let b = Math.sin(Math.PI + tone * Math.PI * 3);
+    let r = Math.sin(3 * tone * Math.PI);
+    let g = Math.sin(3 * tone * Math.PI + 0.5 * Math.PI);
+    let b = Math.sin(3 * tone * Math.PI + 1.3 * Math.PI);
 
     r = Math.round(clamp(r * 255, 0, 255) * volume);
     g = Math.round(clamp(g * 255, 0, 255) * volume);
@@ -60,6 +67,37 @@ export default class SoundPainter {
     return `#${rHex}${gHex}${bHex}`;
   }
 
+  private onFileDrop(e: DragEvent): void {
+    const file = e.dataTransfer.items[0].getAsFile();
+
+    const fileReader = new FileReader();
+
+    fileReader.addEventListener('loadend', () => {
+      const [ header, data ] = (fileReader.result as string).split(';base64,');
+      const decodedData = window.atob(data);
+      const decodedBytes: number[] = new Array(decodedData.length);
+
+      for (let i = 0; i < decodedBytes.length; i++) {
+        decodedBytes[i] = decodedData.charCodeAt(i);
+      }
+
+      const blob = new Blob([new Uint8Array(decodedBytes)], {
+        type: file.type
+      });
+
+      const url = URL.createObjectURL(blob);
+
+      this.play(new AudioFile(url));
+
+      URL.revokeObjectURL(url);
+    });
+
+    fileReader.readAsDataURL(file);
+
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   private onWindowResize(): void {
     this.updateCanvasSizes();
   }
@@ -71,7 +109,7 @@ export default class SoundPainter {
 
     // this.visibleCanvas.clear();
 
-    const notes = new Array(88);
+    let notes = new Array(88);
 
     notes.fill(0);
 
@@ -81,15 +119,16 @@ export default class SoundPainter {
       const index = clamp(key, 0, 87);
 
       if (key >= 0 && key <= 87) {
-        notes[index] = data[i];
+        const loudnessFactor = clamp(2.0 * index / notes.length, 0.5, 2.0);
+
+        notes[index] = Math.round(data[i] * loudnessFactor);
       }
     }
 
-    const highestNote = Math.max(...notes);
+    const loudestNote = Math.max(...notes);
 
     for (let i = 0; i < notes.length; i++) {
-      notes[i] *= Math.pow(notes[i] / highestNote, 2);
-      notes[i] *= clamp(0.2 + i / notes.length, 0, 1);
+      notes[i] = Math.round(notes[i] * Math.pow(notes[i] / loudestNote, 5));
     }
 
     for (let i = 0; i < notes.length; i++) {
@@ -98,13 +137,14 @@ export default class SoundPainter {
       const brightness = Math.round(255 * notes[i] / 255);
       const color = this.getNoteColor(i, notes[i]);
 
-      this.visibleCanvas.circle(color, this.currentXOffset, y, Math.round(brightness / 10));
+      this.visibleCanvas.circle(color, this.currentXOffset + Math.random() * 4 - 2, y + Math.random() * 4 - 2, Math.round(brightness / 10));
     }
 
     this.currentXOffset += 10;
 
     if (this.currentXOffset > window.innerWidth) {
       this.currentXOffset = 0;
+      this.visibleCanvas.clear();
     }
   }
 
