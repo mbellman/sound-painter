@@ -9,8 +9,18 @@ export default class Canvas {
     this.resize(width, height);
   }
 
+  public clear(): void {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
   public getElement(): Readonly<HTMLCanvasElement> {
     return this.canvas;
+  }
+
+  public rectangle(color: string, x: number, y: number, width: number, height: number): void {
+    this.ctx.fillStyle = color;
+
+    this.ctx.fillRect(x, y, width, height);
   }
 
   public resize(width: number, height: number): void {

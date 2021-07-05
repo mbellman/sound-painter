@@ -1,5 +1,9 @@
 export default class AudioCore {
-  private static context: AudioContext = new AudioContext();
+  public static readonly SAMPLE_RATE: number = 44100;
+
+  private static context: AudioContext = new AudioContext({
+    sampleRate: AudioCore.SAMPLE_RATE
+  });
 
   public static createAnalyserNode(): AnalyserNode {
     return AudioCore.context.createAnalyser();

@@ -1,6 +1,8 @@
 import Canvas from './Canvas';
 import Analyser from './audio/Analyser';
+import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
+import { clamp } from './utilities';
 
 export default class SoundPainter {
   private audio: AudioFile = null;
@@ -44,10 +46,27 @@ export default class SoundPainter {
 
     const data = this.analyser.getData();
 
-    console.log(data);
+    this.visibleCanvas.clear();
+
+    const notes = new Array(88);
+
+    notes.fill(0);
 
     for (let i = 0; i < data.length; i++) {
-      // @todo
+      const frequency = i / data.length * AudioCore.SAMPLE_RATE;
+      const note = Math.round(12 * Math.log2(frequency / 440));
+      const index = clamp(note, 0, 87);
+
+      notes[index] = data[i];// notes[index] > 0 ? (notes[index] + data[i]) / 2.0 : data[i];
+    }
+
+    for (let i = 0; i < notes.length; i++) {
+      const height = window.innerHeight / notes.length;
+      const y = (notes.length - i - 1) * height;
+      const x = Math.floor(400 * (1.0 - notes[i] / 256)) + (window.innerWidth - 400);
+      const width = window.innerWidth - x;
+
+      this.visibleCanvas.rectangle('#fa0', x, y, width, height);
     }
   }
 
