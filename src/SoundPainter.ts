@@ -39,13 +39,11 @@ export default class SoundPainter {
     this.audio.connect(this.analyser.getNode()).play();
     this.visibleCanvas.clear();
 
-    this.renderInterval = window.setInterval(() => {
-      this.render();
-    }, 20);
+    this.renderInterval = window.setInterval(() => this.render(), 20);
   }
 
   private getNoteColor(note: number, loudness: number): string {
-    const tone = note / 88;
+    const tone = note / 108;
     const volume = clamp(loudness / 255, 0.3, 1);
 
     let r = Math.sin(3 * tone * Math.PI);
@@ -67,35 +65,41 @@ export default class SoundPainter {
     return `#${rHex}${gHex}${bHex}`;
   }
 
-  private onFileDrop(e: DragEvent): void {
-    const file = e.dataTransfer.items[0].getAsFile();
+  private async fileToBlob(file: File): Promise<Blob> {
+    return new Promise(resolve => {
+      const reader = new FileReader();
 
-    const fileReader = new FileReader();
+      reader.addEventListener('loadend', () => {
+        const [ header, data ] = (reader.result as string).split(';base64,');
+        const decodedData = window.atob(data);
+        const decodedBytes: number[] = new Array(decodedData.length);
+    
+        for (let i = 0; i < decodedBytes.length; i++) {
+          decodedBytes[i] = decodedData.charCodeAt(i);
+        }
+    
+        const blob = new Blob([new Uint8Array(decodedBytes)], {
+          type: file.type
+        });
 
-    fileReader.addEventListener('loadend', () => {
-      const [ header, data ] = (fileReader.result as string).split(';base64,');
-      const decodedData = window.atob(data);
-      const decodedBytes: number[] = new Array(decodedData.length);
-
-      for (let i = 0; i < decodedBytes.length; i++) {
-        decodedBytes[i] = decodedData.charCodeAt(i);
-      }
-
-      const blob = new Blob([new Uint8Array(decodedBytes)], {
-        type: file.type
+        resolve(blob);
       });
 
-      const url = URL.createObjectURL(blob);
-
-      this.play(new AudioFile(url));
-
-      URL.revokeObjectURL(url);
+      reader.readAsDataURL(file);
     });
+  }
 
-    fileReader.readAsDataURL(file);
-
+  private async onFileDrop(e: DragEvent): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
+
+    const file = e.dataTransfer.items[0].getAsFile();
+    const blob = await this.fileToBlob(file);
+    const url = URL.createObjectURL(blob);
+
+    this.play(new AudioFile(url));
+
+    URL.revokeObjectURL(url);
   }
 
   private onWindowResize(): void {
@@ -109,17 +113,17 @@ export default class SoundPainter {
 
     // this.visibleCanvas.clear();
 
-    let notes = new Array(88);
+    let notes = new Array(108);
 
     notes.fill(0);
 
     for (let i = 0; i < data.length; i++) {
       const frequency = i / data.length * AudioCore.SAMPLE_RATE * 0.5;
-      const key = Math.round(12 * Math.log2(frequency / 440));
-      const index = clamp(key, 0, 87);
+      const key = Math.round(12 * Math.log2(frequency / 440)) + 49;
+      const index = clamp(key, 0, 108);
 
-      if (key >= 0 && key <= 87) {
-        const loudnessFactor = clamp(2.0 * index / notes.length, 0.5, 2.0);
+      if (key >= 0 && key <= 108) {
+        const loudnessFactor = clamp(2.0 * index / 108, 0.8, 1.5);
 
         notes[index] = Math.round(data[i] * loudnessFactor);
       }
@@ -137,7 +141,7 @@ export default class SoundPainter {
       const brightness = Math.round(255 * notes[i] / 255);
       const color = this.getNoteColor(i, notes[i]);
 
-      this.visibleCanvas.circle(color, this.currentXOffset + Math.random() * 4 - 2, y + Math.random() * 4 - 2, Math.round(brightness / 10));
+      this.visibleCanvas.circle(color, this.currentXOffset + Math.random() * 4 - 2, y + Math.random() * 4 - 2, Math.round(brightness / 15));
     }
 
     this.currentXOffset += 10;
