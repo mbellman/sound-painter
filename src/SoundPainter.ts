@@ -6,13 +6,14 @@ import { clamp, mod } from './utilities';
 
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
+  private static readonly MOVEMENT_SPEED: number = 5;
   private audio: AudioFile = null;
   private analyser: Analyser;
   private bufferCanvas: Canvas;
   private visibleCanvas: Canvas;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
-  private renderInterval: number = null;
+  private isPlaying: boolean = false;
 
   constructor() {
     this.analyser = new Analyser();
@@ -36,11 +37,15 @@ export default class SoundPainter {
     this.audio = audioFile;
     this.currentXOffset = 0;
 
-    window.clearInterval(this.renderInterval);
     this.audio.connect(this.analyser.getNode()).play();
     this.visibleCanvas.clear();
+    this.bufferCanvas.clear();
 
-    this.renderInterval = window.setInterval(() => this.render(), 20);
+    if (!this.isPlaying) {
+      this.isPlaying = true;
+
+      this.render();
+    }
   }
 
   /**
@@ -64,7 +69,7 @@ export default class SoundPainter {
       if (key >= 0 && key < SoundPainter.TOTAL_NOTES) {
         // Bias higher keys as being equivalently 'louder'
         // to counteract intrinsically louder lower frequencies
-        const loudnessFactor = clamp(2.0 * key / SoundPainter.TOTAL_NOTES, 0.8, 1.5);
+        const loudnessFactor = clamp(2.0 * key / SoundPainter.TOTAL_NOTES, 1.0, 2.0);
 
         notes[key] = (analyserData[i] / 255) * loudnessFactor;
       }
@@ -74,7 +79,7 @@ export default class SoundPainter {
 
     // De-emphasize quieter notes to suppress noise artifacts
     for (let i = 0; i < notes.length; i++) {
-      notes[i] *= Math.pow(notes[i] / loudestNote, 5);
+      notes[i] *= Math.pow(notes[i] / loudestNote, 2);
     }
 
     return notes;
@@ -87,9 +92,9 @@ export default class SoundPainter {
     let g = Math.sin(3 * tone * Math.PI + 0.5 * Math.PI);
     let b = Math.sin(3 * tone * Math.PI + 1.3 * Math.PI);
 
-    r = Math.round(clamp(r * 255, 0, 255) * loudness);
-    g = Math.round(clamp(g * 255, 0, 255) * loudness);
-    b = Math.round(clamp(b * 255, 0, 255) * loudness);
+    r = Math.round(clamp(r * 255 * loudness, 0, 255));
+    g = Math.round(clamp(g * 255 * loudness, 0, 255));
+    b = Math.round(clamp(b * 255 * loudness, 0, 255));
 
     let rHex = Number.isNaN(r) ? '0' : r.toString(16);
     let gHex = Number.isNaN(g) ? '0' : g.toString(16);
@@ -146,14 +151,13 @@ export default class SoundPainter {
     this.updateCanvasSizes();
   }
 
-  /**
-   * @todo use requestAnimationFrame()
-   */
   private render(): void {
-    const notes = this.createNotes();
+    window.requestAnimationFrame(() => this.render());
 
+    const notes = this.createNotes();
     const noteHeight = window.innerHeight / notes.length;
 
+    // Render new notes to buffer canvas
     for (let i = 0; i < notes.length; i++) {
       const y = (notes.length - i - 1) * noteHeight;
       const brightness = Math.round(255 * notes[i]);
@@ -165,34 +169,44 @@ export default class SoundPainter {
       this.bufferCanvas.circle(color, this.currentXOffset + xDrift, y + yDrift, radius);
     }
 
-    this.currentXOffset += 10;
-
-    if (this.currentXOffset > this.bufferCanvas.getElement().width) {
-      this.currentXOffset = 0;
-    }
-
-    this.visibleCanvas.clear();
-
-    // @todo description
-    const visibleWidth = Math.round(this.visibleCanvas.getElement().width * 0.75);
-    const visibleHeight = this.visibleCanvas.getElement().height;
+    // Blit buffer canvas contents to the visible canvas
+    const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
     const sx = Math.max(this.currentXOffset - visibleWidth, 0);
     const sw = Math.min(this.currentXOffset, visibleWidth);
     const dx = Math.max(visibleWidth - this.currentXOffset, 0);
     const dw = visibleWidth - dx;
 
+    this.visibleCanvas.clear();
+
+    // Clear the buffer canvas approximately {visibleWidth} pixels
+    // behind the current x offset, preparing for the area to be
+    // drawn to again on a future cycle
     this.bufferCanvas.clear(
-      mod(this.currentXOffset - visibleWidth - 5, this.bufferCanvas.getElement().width), 0,
-      15, this.bufferCanvas.getElement().height
+      mod(this.currentXOffset - visibleWidth - SoundPainter.MOVEMENT_SPEED - 10, this.bufferCanvas.width), 0,
+      SoundPainter.MOVEMENT_SPEED + 10, this.bufferCanvas.height
     );
 
+    // Blit the buffer canvas from either the start of the canvas
+    // or {currentXOffset - visibleWidth} to {currentXOffset}
     this.bufferCanvas.blit(
       this.visibleCanvas,
-      sx, 0, sw, visibleHeight,
-      dx, 0, dw, visibleHeight
+      sx, 0, sw, this.visibleCanvas.height,
+      dx, 0, dw, this.visibleCanvas.height
     );
 
-    // @todo blit wrapped buffer canvas to fill in remaining space
+    // Cover the remaining space back to the start of the visible
+    // canvas, blitting from the far end of the buffer canvas
+    if (this.currentXOffset < visibleWidth) {
+      const sx = mod(this.currentXOffset - visibleWidth, this.bufferCanvas.width);
+
+      this.bufferCanvas.blit(
+        this.visibleCanvas,
+        sx, 0, this.bufferCanvas.width - sx, this.bufferCanvas.height,
+        0, 0, visibleWidth - this.currentXOffset, this.visibleCanvas.height
+      );
+    }
+
+    this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
   }
 
   private updateCanvasSizes(): void {

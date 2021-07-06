@@ -9,6 +9,14 @@ export default class Canvas {
     this.resize(width, height);
   }
 
+  public get height(): number {
+    return this.canvas.height;
+  }
+
+  public get width(): number {
+    return this.canvas.width;
+  }
+
   public blit(canvas: Canvas, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void {
     canvas.ctx.drawImage(this.canvas, sx, sy, sw, sh, dx, dy, dw, dh);
   }
