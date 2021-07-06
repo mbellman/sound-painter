@@ -9,6 +9,10 @@ export default class Canvas {
     this.resize(width, height);
   }
 
+  public blit(canvas: Canvas, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void {
+    canvas.ctx.drawImage(this.canvas, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
   public circle(color: string, x: number, y: number, radius: number): void {
     this.ctx.fillStyle = color;
 
@@ -17,8 +21,8 @@ export default class Canvas {
     this.ctx.fill();
   }
 
-  public clear(): void {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  public clear(x: number = 0, y: number = 0, width: number = this.canvas.width, height: number = this.canvas.height): void {
+    this.ctx.clearRect(x, y, width, height);
   }
 
   public getElement(): Readonly<HTMLCanvasElement> {

@@ -2,7 +2,7 @@ import Canvas from './Canvas';
 import Analyser from './audio/Analyser';
 import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
-import { clamp } from './utilities';
+import { clamp, mod } from './utilities';
 
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
@@ -146,20 +146,12 @@ export default class SoundPainter {
     this.updateCanvasSizes();
   }
 
+  /**
+   * @todo use requestAnimationFrame()
+   */
   private render(): void {
     const notes = this.createNotes();
 
-    this.renderNotes(notes);
-
-    this.currentXOffset += 10;
-
-    if (this.currentXOffset > window.innerWidth) {
-      this.currentXOffset = 0;
-      this.visibleCanvas.clear();
-    }
-  }
-
-  private renderNotes(notes: number[]): void {
     const noteHeight = window.innerHeight / notes.length;
 
     for (let i = 0; i < notes.length; i++) {
@@ -170,8 +162,37 @@ export default class SoundPainter {
       const yDrift = Math.random() * 4 - 2;
       const radius = Math.round(brightness / 15);
 
-      this.visibleCanvas.circle(color, this.currentXOffset + xDrift, y + yDrift, radius);
+      this.bufferCanvas.circle(color, this.currentXOffset + xDrift, y + yDrift, radius);
     }
+
+    this.currentXOffset += 10;
+
+    if (this.currentXOffset > this.bufferCanvas.getElement().width) {
+      this.currentXOffset = 0;
+    }
+
+    this.visibleCanvas.clear();
+
+    // @todo description
+    const visibleWidth = Math.round(this.visibleCanvas.getElement().width * 0.75);
+    const visibleHeight = this.visibleCanvas.getElement().height;
+    const sx = Math.max(this.currentXOffset - visibleWidth, 0);
+    const sw = Math.min(this.currentXOffset, visibleWidth);
+    const dx = Math.max(visibleWidth - this.currentXOffset, 0);
+    const dw = visibleWidth - dx;
+
+    this.bufferCanvas.clear(
+      mod(this.currentXOffset - visibleWidth - 5, this.bufferCanvas.getElement().width), 0,
+      15, this.bufferCanvas.getElement().height
+    );
+
+    this.bufferCanvas.blit(
+      this.visibleCanvas,
+      sx, 0, sw, visibleHeight,
+      dx, 0, dw, visibleHeight
+    );
+
+    // @todo blit wrapped buffer canvas to fill in remaining space
   }
 
   private updateCanvasSizes(): void {
