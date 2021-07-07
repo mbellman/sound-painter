@@ -2,6 +2,7 @@ import Canvas from './Canvas';
 import Analyser from './audio/Analyser';
 import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
+import Slider from './ui/Slider';
 import { clamp, mod } from './utilities';
 
 export default class SoundPainter {
@@ -11,6 +12,7 @@ export default class SoundPainter {
   private analyser: Analyser;
   private bufferCanvas: Canvas;
   private visibleCanvas: Canvas;
+  private emphasisSlider: Slider;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -19,6 +21,17 @@ export default class SoundPainter {
     this.analyser = new Analyser();
     this.bufferCanvas = new Canvas();
     this.visibleCanvas = new Canvas();
+
+    this.emphasisSlider = new Slider({
+      label: 'Emphasis',
+      length: () => window.innerHeight - 100,
+      orientation: 'vertical',
+      position: () => ({
+        x: window.innerWidth - 320,
+        y: 50
+      }),
+      range: [0, 108]
+    });
 
     this.updateCanvasSizes();
 
