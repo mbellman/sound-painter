@@ -12,7 +12,8 @@ export default class SoundPainter {
   private analyser: Analyser;
   private bufferCanvas: Canvas;
   private visibleCanvas: Canvas;
-  private emphasisSlider: Slider;
+  private emphasis: Slider;
+  private noiseReduction: Slider;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -22,7 +23,7 @@ export default class SoundPainter {
     this.bufferCanvas = new Canvas();
     this.visibleCanvas = new Canvas();
 
-    this.emphasisSlider = new Slider({
+    this.emphasis = new Slider({
       label: 'Emphasis',
       length: () => window.innerHeight - 100,
       orientation: 'vertical',
@@ -30,7 +31,20 @@ export default class SoundPainter {
         x: window.innerWidth - 320,
         y: 50
       }),
-      range: [0, 108]
+      range: [0, 108],
+      default: 50
+    });
+
+    this.noiseReduction = new Slider({
+      label: 'Noise reduction',
+      length: () => 170,
+      orientation: 'horizontal',
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 50
+      }),
+      range: [2, 20],
+      default: 6
     });
 
     this.updateCanvasSizes();
@@ -70,7 +84,7 @@ export default class SoundPainter {
     this.analyser.refreshData();
 
     const analyserData = this.analyser.getData();
-    let notes = new Array(SoundPainter.TOTAL_NOTES);
+    const notes = new Array(SoundPainter.TOTAL_NOTES);
 
     notes.fill(0);
 
@@ -92,7 +106,7 @@ export default class SoundPainter {
 
     // De-emphasize quieter notes to suppress noise artifacts
     for (let i = 0; i < notes.length; i++) {
-      notes[i] *= Math.pow(notes[i] / loudestNote + 0.01, 8);
+      notes[i] *= Math.pow(notes[i] / loudestNote + 0.01, this.noiseReduction.getValue());
     }
 
     return notes;

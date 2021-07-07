@@ -18,6 +18,7 @@ interface SliderOptions {
   orientation: 'horizontal' | 'vertical';
   position: () => Position;
   range: [number, number];
+  default: number;
 };
 
 /**
@@ -39,8 +40,9 @@ export default class Slider {
       <div class="slider--label">
         ${options.label}
       </div>
-      <div class="slider--bar"></div>
-      <div class="slider--handle"></div>
+      <div class="slider--bar">
+        <div class="slider--handle"></div>
+      </div>
     `;
 
     this.$bar = this.element.querySelector('.slider--bar');
@@ -51,6 +53,10 @@ export default class Slider {
     this.initialize(options);
 
     document.body.appendChild(this.element);
+  }
+
+  public getValue(): number {
+    return this.value;
   }
 
   public onChange(change: ChangeHandler): void {
@@ -83,20 +89,30 @@ export default class Slider {
     return parseInt(window.getComputedStyle(this.$bar).height);
   }
 
+  private getBarLeft(): number {
+    return this.$bar.getBoundingClientRect().left;
+  }
+
   private getBarTop(): number {
     return this.$bar.getBoundingClientRect().top;
   }
 
-  private getHandleHeight(): number {
-    return parseInt(window.getComputedStyle(this.$handle).height);
-  }
-
-  private getTopOffset(): number {
-    return this.element.getBoundingClientRect().top;
+  private getBarWidth(): number {
+    return this.$bar.getBoundingClientRect().width;
   }
 
   private initialize(options: SliderOptions): void {
     this.element.classList.add(options.orientation);
+
+    this.value = options.default;
+
+    const defaultRatio = (options.default - options.range[0]) / (options.range[1] - options.range[0]);
+
+    if (options.orientation === 'vertical') {
+      this.$handle.style.top = `${defaultRatio * 100}%`;
+    } else {
+      this.$handle.style.left = `${defaultRatio * 100}%`;
+    }
 
     const updateDimensions = () => {
       const position = options.position();
@@ -122,11 +138,20 @@ export default class Slider {
         const clampedY = clamp(y, this.getBarTop(), this.getBarTop() + this.getBarHeight());
         const ratio = (clampedY - this.getBarTop()) / this.getBarHeight();
 
-        this.value = Math.round(options.range[0] + options.range[1] * ratio);
-        this.$handle.style.top = `${clampedY - this.getHandleHeight() / 2 - this.getTopOffset()}px`;
+        this.value = Math.round(this.lerp(options.range[1], options.range[0], ratio));
+        this.$handle.style.top = `${ratio * 100}%`;
+      } else {
+        const x = e.clientX;
+        const clampedX = clamp(x, this.getBarLeft(), this.getBarLeft() + this.getBarWidth());
+        const ratio = (clampedX - this.getBarLeft()) / this.getBarWidth();
 
-        console.log(this.value);
+        this.value = Math.round(this.lerp(options.range[0], options.range[1], ratio));
+        this.$handle.style.left = `${ratio * 100}%`;
       }
     });
+  }
+
+  private lerp(a: number, b: number, ratio: number): number {
+    return a + (b - a) * ratio;
   }
 }
