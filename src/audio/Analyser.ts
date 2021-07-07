@@ -7,7 +7,7 @@ export default class Analyser {
   constructor() {
     this.node = AudioCore.createAnalyserNode();
     this.node.fftSize = 4096;
-    this.node.smoothingTimeConstant = 0.5;
+    this.node.smoothingTimeConstant = 0;
     this.data = new Uint8Array(this.node.frequencyBinCount);
 
     this.node.connect(AudioCore.getDestination());

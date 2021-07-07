@@ -79,18 +79,18 @@ export default class SoundPainter {
 
     // De-emphasize quieter notes to suppress noise artifacts
     for (let i = 0; i < notes.length; i++) {
-      notes[i] *= Math.pow(notes[i] / loudestNote, 2);
+      notes[i] *= Math.pow(notes[i] / loudestNote + 0.01, 8);
     }
 
     return notes;
   }
 
   private getKeyColor(key: number, loudness: number): string {
-    const tone = key / SoundPainter.TOTAL_NOTES;
+    const tone = (key % 12) / 12; // key / SoundPainter.TOTAL_NOTES;
 
-    let r = Math.sin(3 * tone * Math.PI);
-    let g = Math.sin(3 * tone * Math.PI + 0.5 * Math.PI);
-    let b = Math.sin(3 * tone * Math.PI + 1.3 * Math.PI);
+    let r = Math.sin(tone * Math.PI);
+    let g = Math.sin(tone * Math.PI + 0.5 * Math.PI);
+    let b = Math.sin(tone * Math.PI + 1.3 * Math.PI);
 
     r = Math.round(clamp(r * 255 * loudness, 0, 255));
     g = Math.round(clamp(g * 255 * loudness, 0, 255));
@@ -156,6 +156,9 @@ export default class SoundPainter {
 
     const notes = this.createNotes();
     const noteHeight = window.innerHeight / notes.length;
+    const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
+
+    this.visibleCanvas.clear();
 
     // Render new notes to buffer canvas
     for (let i = 0; i < notes.length; i++) {
@@ -170,33 +173,35 @@ export default class SoundPainter {
     }
 
     // Blit buffer canvas contents to the visible canvas
-    const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
     const sx = Math.max(this.currentXOffset - visibleWidth, 0);
-    const sw = Math.min(this.currentXOffset, visibleWidth);
+    const sw = Math.min(this.currentXOffset, visibleWidth) + 20;
     const dx = Math.max(visibleWidth - this.currentXOffset, 0);
-    const dw = visibleWidth - dx;
+    const dw = visibleWidth - dx + 20;
 
-    this.visibleCanvas.clear();
+    // Clear a strip of the buffer canvas behind the current
+    // viewport to recycle it for future rendering
+    const cx = mod(this.currentXOffset - visibleWidth - SoundPainter.MOVEMENT_SPEED - 5, this.bufferCanvas.width);
+    const cw = SoundPainter.MOVEMENT_SPEED + 10;
 
-    // Clear the buffer canvas approximately {visibleWidth} pixels
-    // behind the current x offset, preparing for the area to be
-    // drawn to again on a future cycle
-    this.bufferCanvas.clear(
-      mod(this.currentXOffset - visibleWidth - SoundPainter.MOVEMENT_SPEED - 10, this.bufferCanvas.width), 0,
-      SoundPainter.MOVEMENT_SPEED + 10, this.bufferCanvas.height
-    );
+    this.bufferCanvas.clear(cx, 0, cw, this.bufferCanvas.height);
 
-    // Blit the buffer canvas from either the start of the canvas
-    // or {currentXOffset - visibleWidth} to {currentXOffset}
+    if (cx + cw > this.bufferCanvas.width) {
+      // Wrap the clear region around to the beginning of
+      // the buffer canvas if it goes out of bounds
+      this.bufferCanvas.clear(0, 0, (cx + cw) - this.bufferCanvas.width, this.bufferCanvas.height);
+    }
+
+    // Blit part of the buffer canvas to the visible canvas,
+    // copying the visible region behind the current x offset
     this.bufferCanvas.blit(
       this.visibleCanvas,
       sx, 0, sw, this.visibleCanvas.height,
       dx, 0, dw, this.visibleCanvas.height
     );
 
-    // Cover the remaining space back to the start of the visible
-    // canvas, blitting from the far end of the buffer canvas
     if (this.currentXOffset < visibleWidth) {
+      // Cover the remaining space back to the start of the visible
+      // canvas, blitting from the far end of the buffer canvas
       const sx = mod(this.currentXOffset - visibleWidth, this.bufferCanvas.width);
 
       this.bufferCanvas.blit(
@@ -204,6 +209,16 @@ export default class SoundPainter {
         sx, 0, this.bufferCanvas.width - sx, this.bufferCanvas.height,
         0, 0, visibleWidth - this.currentXOffset, this.visibleCanvas.height
       );
+    }
+
+    // Superimpose current notes onto background
+    for (let i = 0; i < notes.length; i++) {
+      const y = (notes.length - i - 1) * noteHeight;
+      const brightness = Math.round(255 * notes[i]);
+      const radius = Math.round(brightness / 15);
+
+      // @todo variable note coloration
+      this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
     }
 
     this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
