@@ -3,7 +3,7 @@ import Analyser from './audio/Analyser';
 import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
 import Slider from './ui/Slider';
-import { clamp, mod } from './utilities';
+import { clamp, gaussian, mod, sum } from './utilities';
 
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
@@ -34,7 +34,7 @@ export default class SoundPainter {
         y: 50
       }),
       range: [0, 108],
-      default: 54
+      default: [25, 54, 80]
     });
 
     this.noiseReduction = new Slider({
@@ -125,11 +125,13 @@ export default class SoundPainter {
       const key = Math.round(12 * Math.log2(frequency / 440)) + 49;
 
       if (key >= 0 && key < SoundPainter.TOTAL_NOTES) {
-        // Bias the loudness of notes closer to the emphasis value
-        const emphasis = this.emphasis.getValue();
-        const x = (key - emphasis) * (6 / SoundPainter.TOTAL_NOTES);
-        // @todo gaussian(x)
-        const bias = (Math.pow(Math.E, -Math.pow(x, 2) / 2)) / Math.sqrt(2 * Math.PI);
+        // Bias the loudness of notes closer to the emphasis values
+        const bias = sum(
+          this.emphasis.getValues().map(
+            emphasis => gaussian((key - emphasis) * (6 / SoundPainter.TOTAL_NOTES))
+          )
+        );
+
         const loudnessFactor = 0.8 + bias;
 
         notes[key] = (analyserData[i] / 255) * loudnessFactor;

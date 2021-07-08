@@ -1,5 +1,15 @@
 $bar-color: #333;
-$handle-color: #08c;
+$handle-color-1: #08c;
+$handle-color-2: #0c8;
+$handle-color-3: #c08;
+
+@mixin handle-theme($color) {
+  background-color: $color;
+
+  &:hover, &:active {
+    background-color: lighten($color, 10%);
+  }
+}
 
 .slider {
   position: absolute;
@@ -21,7 +31,6 @@ $handle-color: #08c;
   }
 
   &--handle {
-    background-color: $handle-color;
     border-radius: 50%;
     cursor: grab;
     height: 24px;
@@ -30,14 +39,26 @@ $handle-color: #08c;
     width: 24px;
 
     &:hover {
-      background-color: lighten($handle-color, 10%);
       box-shadow: 0 0 0 4px rgba(150,200,255,0.2);
     }
 
     &:active {
-      background-color: lighten($handle-color, 10%);
       box-shadow: 0 0 0 8px rgba(150,200,255,0.3);
       cursor: grabbing;
+    }
+  }
+
+  &--handle {
+    &:nth-child(n) {
+      @include handle-theme($handle-color-1);
+    }
+
+    &:nth-child(2n) {
+      @include handle-theme($handle-color-2);
+    }
+
+    &:nth-child(3n) {
+      @include handle-theme($handle-color-3);
     }
   }
 

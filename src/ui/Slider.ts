@@ -1,4 +1,4 @@
-import { clamp, isDecimal, lerp } from '../utilities';
+import { clamp, isDecimal, lerp, sort } from '../utilities';
 import './Slider.scss';
 
 /**
@@ -18,7 +18,7 @@ interface SliderOptions {
   orientation: 'horizontal' | 'vertical';
   position: () => Position;
   range: [number, number];
-  default: number;
+  default: number | number[];
 };
 
 /**
@@ -26,12 +26,14 @@ interface SliderOptions {
  */
 type ChangeHandler = (value: number) => void;
 
+/**
+ * @todo extends Widget
+ */
 export default class Slider {
   private element: HTMLElement;
-  private $handle: HTMLElement;
+  private $handles: HTMLElement[] = [];
   private $bar: HTMLElement;
-  private changeHandler: ChangeHandler;
-  private value: number = 0;
+  private values: number[] = [ 0 ];
 
   constructor(options: SliderOptions) {
     this.element = document.createElement('div');
@@ -41,12 +43,15 @@ export default class Slider {
         ${options.label}
       </div>
       <div class="slider--bar">
-        <div class="slider--handle"></div>
+        ${Array.isArray(options.default)
+          ? options.default.map(() => '<div class="slider--handle"></div>').join('')
+          : '<div class="slider--handle"></div>'
+        }
       </div>
     `;
 
     this.$bar = this.element.querySelector('.slider--bar');
-    this.$handle = this.element.querySelector('.slider--handle');
+    this.$handles = [].slice.call(this.element.querySelectorAll('.slider--handle'));
 
     this.element.classList.add('slider');
     
@@ -56,11 +61,11 @@ export default class Slider {
   }
 
   public getValue(): number {
-    return this.value;
+    return this.values[0];
   }
 
-  public onChange(change: ChangeHandler): void {
-    this.changeHandler = change;
+  public getValues(): number[] {
+    return this.values;
   }
 
   /**
@@ -104,16 +109,12 @@ export default class Slider {
   private initialize(options: SliderOptions): void {
     this.element.classList.add(options.orientation);
 
-    this.value = options.default;
+    this.values = Array.isArray(options.default) ? options.default : [ options.default ];
 
-    const defaultRatio = (options.default - options.range[0]) / (options.range[1] - options.range[0]);
     const isDecimalSlider = isDecimal(options.range[0]) || isDecimal(options.range[1]);
 
-    if (options.orientation === 'vertical') {
-      this.$handle.style.top = `${defaultRatio * 100}%`;
-    } else {
-      this.$handle.style.left = `${defaultRatio * 100}%`;
-    }
+    const valueRatio = value =>
+      (value - options.range[0]) / (options.range[1] - options.range[0]);
 
     const updateDimensions = () => {
       const position = options.position();
@@ -129,29 +130,68 @@ export default class Slider {
       }
     };
 
+    const updateBarColor = () => {
+      if (this.values.length > 1) {
+        // @todo graph the emphasis distribution instead of using
+        // a linear gradient, which doesn't correctly represent
+        // the sum at each point
+        const stops = sort(this.values)
+          .reverse()
+          .map(value => 100 - Math.round(valueRatio(value) * 100))
+          .map((percent, index, percentages) => {
+            const nextPercent = percentages[index + 1] || 100;
+            const nextMidStop = (percent + nextPercent) / 2;
+
+            return `#05a ${percent}%, #012 ${nextMidStop}%`;
+          })
+          .join(', ');
+
+        this.$bar.style.background = `linear-gradient(#012 0%, ${stops})`;
+      } else {
+        const valuePercent = Math.round(valueRatio(this.values[0]) * 100);
+
+        this.$bar.style.background = `linear-gradient(to right, #05a 0%, #05a ${valuePercent}%, #333 ${valuePercent + 1}%, #333 100%)`;
+      }
+    };
+
     const normalizeValue = value =>
       isDecimalSlider ? value : Math.round(value);
 
+    this.values.forEach((value, index) => {
+      const offsetProperty = options.orientation === 'vertical' ? 'top' : 'left';
+
+      const offset = options.orientation === 'vertical'
+        ? 100 - valueRatio(value) * 100
+        : valueRatio(value) * 100;
+
+      this.$handles[index].style[offsetProperty] = `${offset}%`;
+    });
+
     updateDimensions();
+    updateBarColor();
 
     window.addEventListener('resize', updateDimensions);
 
-    this.drag(this.$handle, e => {
-      if (options.orientation === 'vertical') {
-        const y = e.clientY;
-        const clampedY = clamp(y, this.getBarTop(), this.getBarTop() + this.getBarHeight());
-        const ratio = (clampedY - this.getBarTop()) / this.getBarHeight();
+    this.$handles.forEach(($handle, index) => {
+      this.drag($handle, e => {
+        if (options.orientation === 'vertical') {
+          const y = e.clientY;
+          const clampedY = clamp(y, this.getBarTop(), this.getBarTop() + this.getBarHeight());
+          const ratio = (clampedY - this.getBarTop()) / this.getBarHeight();
+  
+          this.values[index] = normalizeValue(lerp(options.range[1], options.range[0], ratio));
+          this.$handles[index].style.top = `${ratio * 100}%`;
+        } else {
+          const x = e.clientX;
+          const clampedX = clamp(x, this.getBarLeft(), this.getBarLeft() + this.getBarWidth());
+          const ratio = (clampedX - this.getBarLeft()) / this.getBarWidth();
+  
+          this.values[index] = normalizeValue(lerp(options.range[0], options.range[1], ratio));
+          this.$handles[index].style.left = `${ratio * 100}%`;
+        }
 
-        this.value = normalizeValue(lerp(options.range[1], options.range[0], ratio));
-        this.$handle.style.top = `${ratio * 100}%`;
-      } else {
-        const x = e.clientX;
-        const clampedX = clamp(x, this.getBarLeft(), this.getBarLeft() + this.getBarWidth());
-        const ratio = (clampedX - this.getBarLeft()) / this.getBarWidth();
-
-        this.value = normalizeValue(lerp(options.range[0], options.range[1], ratio));
-        this.$handle.style.left = `${ratio * 100}%`;
-      }
+        updateBarColor();
+      });
     });
   }
 }
