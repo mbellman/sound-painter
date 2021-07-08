@@ -32,7 +32,7 @@ export default class SoundPainter {
         y: 50
       }),
       range: [0, 108],
-      default: 50
+      default: 54
     });
 
     this.noiseReduction = new Slider({
@@ -94,9 +94,12 @@ export default class SoundPainter {
       const key = Math.round(12 * Math.log2(frequency / 440)) + 49;
 
       if (key >= 0 && key < SoundPainter.TOTAL_NOTES) {
-        // Bias higher keys as being equivalently 'louder'
-        // to counteract intrinsically louder lower frequencies
-        const loudnessFactor = clamp(2.0 * key / SoundPainter.TOTAL_NOTES, 1.0, 2.0);
+        // Bias the loudness of notes closer to the emphasis value
+        const emphasis = this.emphasis.getValue();
+        const x = (key - emphasis) * (6 / SoundPainter.TOTAL_NOTES);
+        // @todo gaussian(x)
+        const bias = (Math.pow(Math.E, -Math.pow(x, 2) / 2)) / Math.sqrt(2 * Math.PI);
+        const loudnessFactor = 0.8 + bias;
 
         notes[key] = (analyserData[i] / 255) * loudnessFactor;
       }
