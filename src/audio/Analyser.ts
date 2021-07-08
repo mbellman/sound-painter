@@ -13,6 +13,10 @@ export default class Analyser {
     this.node.connect(AudioCore.getDestination());
   }
 
+  public disconnect(): void {
+    this.node.disconnect();
+  }
+
   public getData(): Readonly<Uint8Array> {
     return this.data;
   }

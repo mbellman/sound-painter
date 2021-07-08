@@ -1,4 +1,4 @@
-import { clamp } from '../utilities';
+import { clamp, isDecimal, lerp } from '../utilities';
 import './Slider.scss';
 
 /**
@@ -107,6 +107,7 @@ export default class Slider {
     this.value = options.default;
 
     const defaultRatio = (options.default - options.range[0]) / (options.range[1] - options.range[0]);
+    const isDecimalSlider = isDecimal(options.range[0]) || isDecimal(options.range[1]);
 
     if (options.orientation === 'vertical') {
       this.$handle.style.top = `${defaultRatio * 100}%`;
@@ -128,6 +129,9 @@ export default class Slider {
       }
     };
 
+    const normalizeValue = value =>
+      isDecimalSlider ? value : Math.round(value);
+
     updateDimensions();
 
     window.addEventListener('resize', updateDimensions);
@@ -138,20 +142,16 @@ export default class Slider {
         const clampedY = clamp(y, this.getBarTop(), this.getBarTop() + this.getBarHeight());
         const ratio = (clampedY - this.getBarTop()) / this.getBarHeight();
 
-        this.value = Math.round(this.lerp(options.range[1], options.range[0], ratio));
+        this.value = normalizeValue(lerp(options.range[1], options.range[0], ratio));
         this.$handle.style.top = `${ratio * 100}%`;
       } else {
         const x = e.clientX;
         const clampedX = clamp(x, this.getBarLeft(), this.getBarLeft() + this.getBarWidth());
         const ratio = (clampedX - this.getBarLeft()) / this.getBarWidth();
 
-        this.value = Math.round(this.lerp(options.range[0], options.range[1], ratio));
+        this.value = normalizeValue(lerp(options.range[0], options.range[1], ratio));
         this.$handle.style.left = `${ratio * 100}%`;
       }
     });
-  }
-
-  private lerp(a: number, b: number, ratio: number): number {
-    return a + (b - a) * ratio;
   }
 }

@@ -14,6 +14,7 @@ export default class SoundPainter {
   private visibleCanvas: Canvas;
   private emphasis: Slider;
   private noiseReduction: Slider;
+  private noteSize: Slider;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -25,8 +26,8 @@ export default class SoundPainter {
 
     this.emphasis = new Slider({
       label: 'Emphasis',
-      length: () => window.innerHeight - 100,
       orientation: 'vertical',
+      length: () => window.innerHeight - 100,
       position: () => ({
         x: window.innerWidth - 320,
         y: 50
@@ -37,14 +38,26 @@ export default class SoundPainter {
 
     this.noiseReduction = new Slider({
       label: 'Noise reduction',
-      length: () => 170,
       orientation: 'horizontal',
+      length: () => 170,
       position: () => ({
         x: window.innerWidth - 220,
         y: 50
       }),
       range: [2, 20],
       default: 6
+    });
+
+    this.noteSize = new Slider({
+      label: 'Note size',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 120
+      }),
+      range: [0.5, 1.5],
+      default: 1.0
     });
 
     this.updateCanvasSizes();
@@ -61,7 +74,12 @@ export default class SoundPainter {
       this.audio.stop();
     }
 
+    if (this.analyser) {
+      this.analyser.disconnect();
+    }
+
     this.audio = audioFile;
+    this.analyser = new Analyser();
     this.currentXOffset = 0;
 
     this.audio.connect(this.analyser.getNode()).play();
@@ -107,9 +125,11 @@ export default class SoundPainter {
 
     const loudestNote = Math.max(...notes);
 
-    // De-emphasize quieter notes to suppress noise artifacts
     for (let i = 0; i < notes.length; i++) {
-      notes[i] *= Math.pow(notes[i] / loudestNote + 0.01, this.noiseReduction.getValue());
+      const noiseReductionFactor = Math.pow(notes[i] / loudestNote + 0.01, this.noiseReduction.getValue());
+      const sizeFactor = this.noteSize.getValue();
+
+      notes[i] *= noiseReductionFactor * sizeFactor;
     }
 
     return notes;

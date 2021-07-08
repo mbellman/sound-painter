@@ -1,3 +1,6 @@
+$bar-color: #333;
+$handle-color: #08c;
+
 .slider {
   position: absolute;
 
@@ -11,19 +14,15 @@
   }
 
   &--bar {
-    background-color: #58a;
-    border: 1px solid #aac;
+    background-color: $bar-color;
     border-radius: 5px;
-    box-shadow: 0 0 2px 1px #335 inset;
     box-sizing: border-box;
     position: absolute;
   }
 
   &--handle {
-    background-color: #08c;
-    border: 2px solid #fff;
+    background-color: $handle-color;
     border-radius: 50%;
-    box-shadow: 0 0 0 0 rgba(255,255,255,0.2);
     cursor: grab;
     height: 24px;
     position: absolute;
@@ -31,13 +30,13 @@
     width: 24px;
 
     &:hover {
-      background-color: #06a;
+      background-color: lighten($handle-color, 10%);
       box-shadow: 0 0 0 4px rgba(150,200,255,0.2);
     }
 
     &:active {
-      background-color: #048;
-      box-shadow: 0 0 0 8px rgba(150,200,255,0.2);
+      background-color: lighten($handle-color, 10%);
+      box-shadow: 0 0 0 8px rgba(150,200,255,0.3);
       cursor: grabbing;
     }
   }
