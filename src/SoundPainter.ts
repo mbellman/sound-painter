@@ -15,6 +15,7 @@ export default class SoundPainter {
   private emphasis: Slider;
   private noiseReduction: Slider;
   private noteSize: Slider;
+  private drift: Slider;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -58,6 +59,18 @@ export default class SoundPainter {
       }),
       range: [0.5, 1.5],
       default: 1.0
+    });
+
+    this.drift = new Slider({
+      label: 'Drift',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 190
+      }),
+      range: [0, 10],
+      default: 4
     });
 
     this.updateCanvasSizes();
@@ -138,9 +151,9 @@ export default class SoundPainter {
   private getKeyColor(key: number, loudness: number): string {
     const tone = (key % 12) / 12; // key / SoundPainter.TOTAL_NOTES;
 
-    let r = Math.sin(tone * Math.PI);
-    let g = Math.sin(tone * Math.PI + 0.5 * Math.PI);
-    let b = Math.sin(tone * Math.PI + 1.3 * Math.PI);
+    let r = clamp(Math.sin(tone * Math.PI), 0, 1);
+    let g = clamp(Math.sin(tone * Math.PI + 0.5 * Math.PI), 0, 1);
+    let b = clamp(Math.sin(tone * Math.PI + 1.3 * Math.PI), 0, 1);
 
     r = Math.round(clamp(r * 255 * loudness, 0, 255));
     g = Math.round(clamp(g * 255 * loudness, 0, 255));
@@ -213,11 +226,11 @@ export default class SoundPainter {
     // Render new notes to buffer canvas
     for (let i = 0; i < notes.length; i++) {
       const y = (notes.length - i - 1) * noteHeight;
-      const brightness = Math.round(255 * notes[i]);
       const color = this.getKeyColor(i, notes[i]);
-      const xDrift = Math.random() * 4 - 2;
-      const yDrift = Math.random() * 4 - 2;
-      const radius = Math.round(brightness / 15);
+      const drift = this.drift.getValue();
+      const xDrift = Math.random() * drift - drift / 2;
+      const yDrift = Math.random() * drift - drift / 2;
+      const radius = Math.round((255 * notes[i]) / 15);
 
       this.bufferCanvas.circle(color, this.currentXOffset + xDrift, y + yDrift, radius);
     }
@@ -267,7 +280,6 @@ export default class SoundPainter {
       const brightness = Math.round(255 * notes[i]);
       const radius = Math.round(brightness / 15);
 
-      // @todo variable note coloration
       this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
     }
 
