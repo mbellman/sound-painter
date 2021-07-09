@@ -8,6 +8,13 @@ import { clamp, gaussian, mod, sum } from './utilities';
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
   private static readonly MOVEMENT_SPEED: number = 5;
+
+  private static readonly NOISE_REDUCTION_RANGES: number[][] = [
+    [0, 40],
+    [41, 90],
+    [91, 107]
+  ];
+
   private audio: AudioFile = null;
   private analyser: Analyser;
   private bufferCanvas: Canvas;
@@ -47,7 +54,7 @@ export default class SoundPainter {
         y: 50
       }),
       range: [2, 20],
-      default: 6
+      default: 10
     });
 
     this.noteSize = new Slider({
@@ -58,8 +65,8 @@ export default class SoundPainter {
         x: window.innerWidth - 220,
         y: 120
       }),
-      range: [0.5, 1.5],
-      default: 1.0
+      range: [0.2, 1.0],
+      default: 0.6
     });
 
     this.drift = new Slider({
@@ -83,7 +90,7 @@ export default class SoundPainter {
         y: 260
       }),
       range: [0.1, 0.8],
-      default: 0.25
+      default: 0.5
     });
 
     this.updateCanvasSizes();
@@ -141,23 +148,27 @@ export default class SoundPainter {
         // Bias the loudness of notes closer to the emphasis values
         const bias = sum(
           this.emphasis.getValues().map(
-            emphasis => gaussian((key - emphasis) * (6 / SoundPainter.TOTAL_NOTES))
+            emphasis => 1.5 * gaussian((key - emphasis) * (6 / SoundPainter.TOTAL_NOTES))
           )
         );
 
-        const loudnessFactor = 0.8 + bias;
+        const loudnessFactor = 0.5 + bias;
+        const sizeFactor = this.noteSize.getValue();
 
-        notes[key] = (analyserData[i] / 255) * loudnessFactor;
+        notes[key] = (analyserData[i] / 255) * loudnessFactor * sizeFactor;
       }
     }
 
-    const loudestNote = Math.max(...notes);
+    // Apply noise reduction
+    for (let i = 0; i < SoundPainter.NOISE_REDUCTION_RANGES.length; i++) {
+      const [ start, end ] = SoundPainter.NOISE_REDUCTION_RANGES[i];
+      const loudestNoteInRange = Math.max(...notes.slice(start, end + 1));
 
-    for (let i = 0; i < notes.length; i++) {
-      const noiseReductionFactor = Math.pow(notes[i] / loudestNote + 0.01, this.noiseReduction.getValue());
-      const sizeFactor = this.noteSize.getValue();
+      for (let j = start; j <= end; j++) {
+        const noiseReductionFactor = Math.pow(notes[j] / loudestNoteInRange, this.noiseReduction.getValue());
 
-      notes[i] *= noiseReductionFactor * sizeFactor;
+        notes[j] *= noiseReductionFactor;
+      }
     }
 
     return notes;
