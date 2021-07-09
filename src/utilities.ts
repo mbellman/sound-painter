@@ -25,3 +25,7 @@ export function sum(numbers: number[]): number {
 export function sort(numbers: number[]): number[] {
   return [...numbers].sort((a, b) => a > b ? 1 : a < b ? -1 : 0);
 }
+
+export function midpoint(a: number, b: number) {
+  return lerp(a, b, 0.5);
+}

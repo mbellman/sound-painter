@@ -3,18 +3,11 @@ import Analyser from './audio/Analyser';
 import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
 import Slider from './ui/Slider';
-import { clamp, gaussian, mod, sum } from './utilities';
+import { clamp, gaussian, lerp, midpoint, mod, sort, sum } from './utilities';
 
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
   private static readonly MOVEMENT_SPEED: number = 5;
-
-  private static readonly NOISE_REDUCTION_RANGES: number[][] = [
-    [0, 40],
-    [41, 90],
-    [91, 107]
-  ];
-
   private audio: AudioFile = null;
   private analyser: Analyser;
   private bufferCanvas: Canvas;
@@ -24,6 +17,9 @@ export default class SoundPainter {
   private noteSize: Slider;
   private drift: Slider;
   private brightness: Slider;
+  private smoothing: Slider;
+  private zoom: Slider;
+  private previousNotes: number[] = [];
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -93,6 +89,30 @@ export default class SoundPainter {
       default: 0.5
     });
 
+    this.smoothing = new Slider({
+      label: 'Smoothing',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 330
+      }),
+      range: [0.0, 0.8],
+      default: 0.1
+    });
+
+    this.zoom = new Slider({
+      label: 'Zoom',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 400
+      }),
+      range: [0.5, 2.0],
+      default: 1.0
+    });
+
     this.updateCanvasSizes();
 
     window.addEventListener('resize', () => this.onWindowResize());
@@ -160,14 +180,33 @@ export default class SoundPainter {
     }
 
     // Apply noise reduction
-    for (let i = 0; i < SoundPainter.NOISE_REDUCTION_RANGES.length; i++) {
-      const [ start, end ] = SoundPainter.NOISE_REDUCTION_RANGES[i];
+    const emphases = sort(this.emphasis.getValues());
+    const mid1 = Math.round(midpoint(emphases[0], emphases[1]));
+    const mid2 = Math.round(midpoint(emphases[1], emphases[2]));
+
+    const noiseReductionRanges = [
+      [0, mid1],
+      [mid1, mid2],
+      [mid2, 107]
+    ];
+
+    for (let i = 0; i < noiseReductionRanges.length; i++) {
+      const [ start, end ] = noiseReductionRanges[i];
       const loudestNoteInRange = Math.max(...notes.slice(start, end + 1));
 
       for (let j = start; j <= end; j++) {
         const noiseReductionFactor = Math.pow(notes[j] / loudestNoteInRange, this.noiseReduction.getValue());
 
         notes[j] *= noiseReductionFactor;
+      }
+    }
+
+    // Apply smoothing
+    for (let i = 0; i < SoundPainter.TOTAL_NOTES; i++) {
+      const smoothing = this.smoothing.getValue();
+
+      if (notes[i] < this.previousNotes[i]) {
+        notes[i] = lerp(notes[i], this.previousNotes[i], smoothing);
       }
     }
 
@@ -247,12 +286,14 @@ export default class SoundPainter {
     const notes = this.createNotes();
     const noteHeight = window.innerHeight / notes.length;
     const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
+    const zoom = this.zoom.getValue();
+    const zoomOffset = (window.innerHeight / 2 * (zoom - 1));
 
     this.visibleCanvas.clear();
 
     // Render new notes to buffer canvas
     for (let i = 0; i < notes.length; i++) {
-      const y = (notes.length - i - 1) * noteHeight;
+      const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
       const color = this.getKeyColor(i, notes[i]);
       const drift = this.drift.getValue();
       const xDrift = Math.random() * drift - drift / 2;
@@ -303,7 +344,7 @@ export default class SoundPainter {
 
     // Superimpose current notes onto background
     for (let i = 0; i < notes.length; i++) {
-      const y = (notes.length - i - 1) * noteHeight;
+      const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
       const brightness = Math.round(255 * notes[i]);
       const radius = Math.round(brightness / 15);
 
@@ -311,6 +352,7 @@ export default class SoundPainter {
     }
 
     this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
+    this.previousNotes = notes;
   }
 
   private updateCanvasSizes(): void {
