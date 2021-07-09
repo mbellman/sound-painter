@@ -16,6 +16,7 @@ export default class SoundPainter {
   private noiseReduction: Slider;
   private noteSize: Slider;
   private drift: Slider;
+  private brightness: Slider;
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
   private isPlaying: boolean = false;
@@ -71,6 +72,18 @@ export default class SoundPainter {
       }),
       range: [0, 10],
       default: 4
+    });
+
+    this.brightness = new Slider({
+      label: 'Brightness',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 260
+      }),
+      range: [0.1, 0.8],
+      default: 0.25
     });
 
     this.updateCanvasSizes();
@@ -152,14 +165,15 @@ export default class SoundPainter {
 
   private getKeyColor(key: number, loudness: number): string {
     const tone = (key % 12) / 12; // key / SoundPainter.TOTAL_NOTES;
+    const brightness = this.brightness.getValue() + key / SoundPainter.TOTAL_NOTES;
 
     let r = clamp(Math.sin(tone * Math.PI), 0, 1);
     let g = clamp(Math.sin(tone * Math.PI + 0.5 * Math.PI), 0, 1);
     let b = clamp(Math.sin(tone * Math.PI + 1.3 * Math.PI), 0, 1);
 
-    r = Math.round(clamp(r * 255 * loudness, 0, 255));
-    g = Math.round(clamp(g * 255 * loudness, 0, 255));
-    b = Math.round(clamp(b * 255 * loudness, 0, 255));
+    r = Math.round(clamp(r * 255 * loudness * brightness, 0, 255));
+    g = Math.round(clamp(g * 255 * loudness * brightness, 0, 255));
+    b = Math.round(clamp(b * 255 * loudness * brightness, 0, 255));
 
     let rHex = Number.isNaN(r) ? '0' : r.toString(16);
     let gHex = Number.isNaN(g) ? '0' : g.toString(16);
