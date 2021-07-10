@@ -33,11 +33,6 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './public/index.html',
       inject: 'body'
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        { from: 'public/assets', to: 'assets' }
-      ]
     })
   ]
 };

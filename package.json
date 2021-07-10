@@ -4,7 +4,7 @@
   "description": "A tool that paints sounds.",
   "main": "index.js",
   "scripts": {
-    "build": "webpack --config webpack.build.js",
+    "build": "rm -rf dist && webpack --config webpack.build.js",
     "serve": "webpack serve --config webpack.serve.js"
   },
   "repository": {
