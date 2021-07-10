@@ -3,7 +3,8 @@ import Analyser from './audio/Analyser';
 import AudioCore from './audio/AudioCore';
 import AudioFile from './audio/AudioFile';
 import Slider from './ui/Slider';
-import { clamp, gaussian, lerp, midpoint, mod, sort, sum } from './utilities';
+import Loader from './ui/Loader';
+import { clamp, delay, gaussian, lerp, midpoint, mod, sort, sum } from './utilities';
 
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
@@ -12,6 +13,7 @@ export default class SoundPainter {
   private analyser: Analyser;
   private bufferCanvas: Canvas;
   private visibleCanvas: Canvas;
+  private loader: Loader;
   private emphasis: Slider;
   private noiseReduction: Slider;
   private noteSize: Slider;
@@ -28,14 +30,15 @@ export default class SoundPainter {
     this.analyser = new Analyser();
     this.bufferCanvas = new Canvas();
     this.visibleCanvas = new Canvas();
+    this.loader = new Loader();
 
     this.emphasis = new Slider({
       label: 'Emphasis',
       orientation: 'vertical',
-      length: () => window.innerHeight - 100,
+      length: () => window.innerHeight - 20,
       position: () => ({
         x: window.innerWidth - 320,
-        y: 50
+        y: 10
       }),
       range: [0, 108],
       default: [25, 54, 80]
@@ -263,15 +266,38 @@ export default class SoundPainter {
     });
   }
 
+  /**
+   * @todo clean up
+   */
   private async onFileDrop(e: DragEvent): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
 
     const file = e.dataTransfer.items[0].getAsFile();
+
+    if (this.audio) {
+      this.audio.stop();
+
+      this.audio = null;
+    }
+
+    this.isPlaying = false;
+
+    this.loader.show();
+
+    await delay(50);
+
+    this.visibleCanvas.clear();
+    this.bufferCanvas.clear();
+
     const blob = await this.fileToBlob(file);
     const url = URL.createObjectURL(blob);
 
     this.play(new AudioFile(url));
+
+    setTimeout(() => {
+      this.loader.hide();
+    }, 500);
 
     URL.revokeObjectURL(url);
   }
@@ -281,7 +307,9 @@ export default class SoundPainter {
   }
 
   private render(): void {
-    window.requestAnimationFrame(() => this.render());
+    if (this.isPlaying) {
+      window.requestAnimationFrame(() => this.render());
+    }
 
     const notes = this.createNotes();
     const noteHeight = window.innerHeight / notes.length;
@@ -363,7 +391,7 @@ export default class SoundPainter {
         )
       );
 
-      this.visibleCanvas.circle(this.getKeyColor(i, emphasis / 25), visibleWidth + 75 - emphasis, y, emphasis / 3);
+      this.visibleCanvas.circle(this.getKeyColor(11, emphasis / 15), visibleWidth + 75 - emphasis, y, emphasis / 3);
     }
 
     this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;

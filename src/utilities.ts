@@ -29,3 +29,7 @@ export function sort(numbers: number[]): number[] {
 export function midpoint(a: number, b: number) {
   return lerp(a, b, 0.5);
 }
+
+export function delay(time) {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
