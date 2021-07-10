@@ -36,6 +36,7 @@ $spinner-color: #0af;
   }
 
   &--spinner {
+    animation: spin 10s linear infinite;
     border: 10px solid $spinner-color;
     border-radius: 50%;
     box-sizing: border-box;
@@ -44,7 +45,6 @@ $spinner-color: #0af;
     position: absolute;
     top: 0;
     width: 100%;
-    animation: spin 10s linear;
 
     &::before {
       @include spinner-mask();

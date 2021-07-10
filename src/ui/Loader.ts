@@ -1,25 +1,24 @@
+import Widget from './Widget';
 import './Loader.scss';
 
-export default class Loader {
-  private element: HTMLElement;
-
-  constructor() {
-    this.element = document.createElement('div');
-
-    this.element.innerHTML = `
-      <div class="loader hidden">
-        <div class="loader--spinner"></div>
-      </div>
-    `;
-
-    document.body.appendChild(this.element);
-  }
-
+export default class Loader extends Widget {
   public hide(): void {
-    this.element.querySelector('.loader').classList.add('hidden');
+    this.element.classList.add('hidden');
   }
 
   public show(): void {
-    this.element.querySelector('.loader').classList.remove('hidden');
+    this.element.classList.remove('hidden');
+  }
+
+  protected initialize(): void {
+    this.hide();
+  }
+
+  protected template(): string {
+    return `
+      <div class="loader">
+        <div class="loader--spinner"></div>
+      </div>
+    `;
   }
 }
