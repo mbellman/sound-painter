@@ -168,7 +168,7 @@ export default class SoundPainter {
         // Bias the loudness of notes closer to the emphasis values
         const bias = sum(
           this.emphasis.getValues().map(
-            emphasis => 1.5 * gaussian((key - emphasis) * (6 / SoundPainter.TOTAL_NOTES))
+            emphasis => 2.0 * gaussian((key - emphasis) * (12 / SoundPainter.TOTAL_NOTES))
           )
         );
 
@@ -342,13 +342,28 @@ export default class SoundPainter {
       );
     }
 
-    // Superimpose current notes onto background
+    // Superimpose "active" notes onto background
+    const loudestNote = Math.max(...notes);
+
     for (let i = 0; i < notes.length; i++) {
       const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
-      const brightness = Math.round(255 * notes[i]);
-      const radius = Math.round(brightness / 15);
 
-      this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
+      if (notes[i] / loudestNote > 0.5) {
+        // Only draw active notes if they're loud enough
+        const brightness = Math.round(255 * notes[i]);
+        const radius = Math.round(brightness / 15);
+
+        this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
+      }
+
+      // Graph emphasis distribution
+      const emphasis = 25 * sum(
+        this.emphasis.getValues().map(
+          emphasis => 2.0 * gaussian((i - emphasis) * (12 / SoundPainter.TOTAL_NOTES))
+        )
+      );
+
+      this.visibleCanvas.circle(this.getKeyColor(i, emphasis / 25), visibleWidth + 75 - emphasis, y, emphasis / 3);
     }
 
     this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
