@@ -13,6 +13,10 @@ export default class AudioCore {
     return AudioCore.context.createBufferSource();
   }
 
+  public static createDelayNode(maxDelay: number = 179.0): DelayNode {
+    return AudioCore.context.createDelay(maxDelay);
+  }
+
   public static decodeAudioData(audioData: ArrayBuffer, handler: (buffer: AudioBuffer) => void): void {
     AudioCore.context.decodeAudioData(audioData, handler);
   }

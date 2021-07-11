@@ -9,6 +9,9 @@ enum SoundState {
   SOUND_PAUSED
 }
 
+/**
+ * @todo extends Node<AudioBufferSourceNode>
+ */
 export default class AudioFile {
   private audioBuffer: AudioBuffer;
   private assetPath: string;

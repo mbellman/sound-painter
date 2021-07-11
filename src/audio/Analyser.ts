@@ -1,31 +1,29 @@
 import AudioCore from './AudioCore';
+import Node from './Node';
 
-export default class Analyser {
+export default class Analyser extends Node<AnalyserNode> {
   private data: Uint8Array;
-  private node: AnalyserNode;
 
   constructor() {
-    this.node = AudioCore.createAnalyserNode();
-    this.node.fftSize = 4096;
-    this.node.smoothingTimeConstant = 0.5;
+    super();
+
     this.data = new Uint8Array(this.node.frequencyBinCount);
-
-    this.node.connect(AudioCore.getDestination());
-  }
-
-  public disconnect(): void {
-    this.node.disconnect();
   }
 
   public getData(): Readonly<Uint8Array> {
     return this.data;
   }
-  
-  public getNode(): Readonly<AudioNode> {
-    return this.node;
-  }
 
   public refreshData(): void {
     this.node.getByteFrequencyData(this.data);
+  }
+
+  protected createNode(): AnalyserNode {
+    const node = AudioCore.createAnalyserNode();
+
+    node.fftSize = 4096;
+    node.smoothingTimeConstant = 0.5;
+
+    return node;
   }
 }
