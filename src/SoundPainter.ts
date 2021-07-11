@@ -118,7 +118,7 @@ export default class SoundPainter {
 
     this.updateCanvasSizes();
 
-    window.addEventListener('resize', () => this.onWindowResize());
+    window.addEventListener('resize', () => this.updateCanvasSizes());
     window.addEventListener('dragover', e => e.preventDefault());
     window.addEventListener('drop', e => this.onFileDrop(e));
 
@@ -294,16 +294,11 @@ export default class SoundPainter {
     const url = URL.createObjectURL(blob);
 
     this.play(new AudioFile(url));
-
-    setTimeout(() => {
-      this.loader.hide();
-    }, 500);
-
     URL.revokeObjectURL(url);
-  }
 
-  private onWindowResize(): void {
-    this.updateCanvasSizes();
+    await delay(500);
+
+    this.loader.hide();
   }
 
   private render(): void {
