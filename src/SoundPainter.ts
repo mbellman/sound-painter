@@ -29,7 +29,6 @@ export default class SoundPainter {
   private isPlaying: boolean = false;
 
   constructor() {
-    this.analyser = new Analyser();
     this.bufferCanvas = new Canvas();
     this.visibleCanvas = new Canvas();
     this.loader = new Loader();
@@ -43,7 +42,7 @@ export default class SoundPainter {
         y: 10
       }),
       range: [0, 108],
-      default: [25, 54, 80]
+      default: [15, 35, 60, 85]
     });
 
     // @todo use a helper to generate the horizontal sliders
@@ -186,16 +185,24 @@ export default class SoundPainter {
       }
     }
 
-    // Apply noise reduction
+    // Apply noise reduction within distinct ranges of
+    // musical keys based on emphasis points
     const emphases = sort(this.emphasis.getValues());
-    const mid1 = Math.round(midpoint(emphases[0], emphases[1]));
-    const mid2 = Math.round(midpoint(emphases[1], emphases[2]));
 
-    const noiseReductionRanges = [
-      [0, mid1],
-      [mid1, mid2],
-      [mid2, 107]
-    ];
+    // Use midpoints between emphases as boundaries
+    // for noise reduction "zones"
+    const midpoints = emphases
+      .slice(0, -1)
+      .map((emphasis, index) => {
+        return Math.round(midpoint(emphasis, emphases[index + 1]));
+      });
+
+    const noiseReductionRanges = emphases.map((emphasis, index) => {
+      const start = midpoints[index - 1] || 0;
+      const end = midpoints[index] || (SoundPainter.TOTAL_NOTES - 1);
+
+      return [start, end];
+    });
 
     for (let i = 0; i < noiseReductionRanges.length; i++) {
       const [ start, end ] = noiseReductionRanges[i];
