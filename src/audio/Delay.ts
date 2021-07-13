@@ -8,6 +8,10 @@ export default class Delay extends Node<DelayNode> {
     this.node.delayTime.value = delay;
   }
 
+  public setDelay(delay: number): void {
+    this.node.delayTime.value = delay;
+  }
+
   protected createNode(): DelayNode {
     return AudioCore.createDelayNode();
   }

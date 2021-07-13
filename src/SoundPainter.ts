@@ -23,6 +23,7 @@ export default class SoundPainter {
   private brightness: Slider;
   private smoothing: Slider;
   private zoom: Slider;
+  private synchronization: Slider;
   private previousNotes: number[] = [];
   private currentXOffset: number = 0;
   private extraBufferWidth: number = 100;
@@ -118,11 +119,24 @@ export default class SoundPainter {
       default: 1.0
     });
 
+    this.synchronization = new Slider({
+      label: 'Synchronization',
+      orientation: 'horizontal',
+      length: () => 170,
+      position: () => ({
+        x: window.innerWidth - 220,
+        y: 470
+      }),
+      range: [0.0, 0.5],
+      default: 0.0
+    });
+
     this.updateCanvasSizes();
 
     window.addEventListener('resize', () => this.updateCanvasSizes());
     window.addEventListener('dragover', e => e.preventDefault());
     window.addEventListener('drop', e => this.onFileDrop(e));
+    window.addEventListener('mousedown', () => AudioCore.enableIfSuspended());
 
     document.body.appendChild(this.visibleCanvas.getElement());
   }
@@ -320,6 +334,8 @@ export default class SoundPainter {
     const notes = this.createNotes();
     
     this.visibleCanvas.clear();
+    this.delay.setDelay(this.synchronization.getValue());
+
     // @todo delay audio output and render aurally
     // active notes after preview notes
     this.renderNotes(notes, 1.0, 0);

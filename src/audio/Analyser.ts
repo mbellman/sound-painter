@@ -7,6 +7,10 @@ export default class Analyser extends Node<AnalyserNode> {
   constructor() {
     super();
 
+    // @todo use options
+    this.node.fftSize = 4096;
+    this.node.smoothingTimeConstant = 0.5;
+
     this.data = new Uint8Array(this.node.frequencyBinCount);
   }
 
@@ -19,11 +23,6 @@ export default class Analyser extends Node<AnalyserNode> {
   }
 
   protected createNode(): AnalyserNode {
-    const node = AudioCore.createAnalyserNode();
-
-    node.fftSize = 4096;
-    node.smoothingTimeConstant = 0.5;
-
-    return node;
+    return AudioCore.createAnalyserNode();
   }
 }

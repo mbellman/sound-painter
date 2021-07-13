@@ -1,7 +1,13 @@
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
 export default class AudioCore {
   public static readonly SAMPLE_RATE: number = 44100;
 
-  private static context: AudioContext = new AudioContext({
+  private static context: AudioContext = new (window.AudioContext || window.webkitAudioContext)({
     sampleRate: AudioCore.SAMPLE_RATE
   });
 
@@ -21,11 +27,19 @@ export default class AudioCore {
     AudioCore.context.decodeAudioData(audioData, handler);
   }
 
+  public static enableIfSuspended(): void {
+    if (AudioCore.context.state === 'suspended') {
+      AudioCore.context.resume();
+    }
+  }
+
   public static getDestination(): AudioDestinationNode {
     return AudioCore.context.destination;
   }
 
   public static play(node: AudioBufferSourceNode, offset?: number, destination?: AudioNode): void {
+    console.log(AudioCore.context);
+
     node.connect(destination || AudioCore.context.destination);
     node.start(0, offset);
   }
