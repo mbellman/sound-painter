@@ -38,8 +38,6 @@ export default class AudioCore {
   }
 
   public static play(node: AudioBufferSourceNode, offset?: number, destination?: AudioNode): void {
-    console.log(AudioCore.context);
-
     node.connect(destination || AudioCore.context.destination);
     node.start(0, offset);
   }

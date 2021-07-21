@@ -1,7 +1,7 @@
 import AudioCore from './AudioCore';
-import Node from './Node';
+import WebAudioNode from './WebAudioNode';
 
-export default class Analyser extends Node<AnalyserNode> {
+export default class Analyser extends WebAudioNode<AnalyserNode> {
   private data: Uint8Array;
 
   constructor() {

@@ -1,4 +1,5 @@
 import AudioCore from './AudioCore';
+import WebAudioNode from './WebAudioNode';
 
 /**
  * @internal
@@ -9,21 +10,18 @@ enum SoundState {
   SOUND_PAUSED
 }
 
-/**
- * @todo extends Node<AudioBufferSourceNode>
- */
-export default class AudioFile {
+export default class AudioFile extends WebAudioNode<AudioBufferSourceNode> {
   private audioBuffer: AudioBuffer;
   private assetPath: string;
   private elapsedTime: number = 0;
   private isLoaded: boolean = false;
   private lastPlayStartTime: number = 0;
-  private passThroughNode: AudioNode;
-  private sourceNode: AudioBufferSourceNode;
   private startPlayingOnLoad: boolean = false;
   private state: SoundState = SoundState.SOUND_STOPPED;
 
   public constructor(assetPath: string) {
+    super();
+
     this.assetPath = assetPath;
 
     this.load();
@@ -33,12 +31,6 @@ export default class AudioFile {
     return this.state === SoundState.SOUND_PLAYING;
   }
 
-  public connect(node: AudioNode): AudioFile {
-    this.passThroughNode = node;
-
-    return this;
-  }
-
   public play = () => {
     if (!this.isLoaded) {
       this.startPlayingOnLoad = true;
@@ -46,12 +38,13 @@ export default class AudioFile {
       return;
     }
 
-    if (this.state === SoundState.SOUND_STOPPED || !this.sourceNode) {
+    if (this.state === SoundState.SOUND_STOPPED || !this.node) {
       this.resetNode();
     }
 
     if (this.state !== SoundState.SOUND_PLAYING) {
-      AudioCore.play(this.sourceNode, this.elapsedTime, this.passThroughNode);
+      this.connect(this.targetNode || AudioCore.getDestination());
+      this.node.start(0, this.elapsedTime);
 
       this.lastPlayStartTime = Date.now();
       this.state = SoundState.SOUND_PLAYING;
@@ -59,7 +52,8 @@ export default class AudioFile {
   };
 
   public pause(): void {
-    AudioCore.stop(this.sourceNode);
+    this.node.stop();
+    this.disconnect();
 
     this.resetNode();
 
@@ -74,10 +68,15 @@ export default class AudioFile {
 
   public stop(): void {
     if (this.state === SoundState.SOUND_PLAYING) {
-      AudioCore.stop(this.sourceNode);
+      this.node.stop();
+      this.disconnect();
     }
 
     this.onEnded();
+  }
+
+  protected createNode(): AudioBufferSourceNode {
+    return AudioCore.createBufferSource();
   }
 
   private onEnded = () => {
@@ -107,13 +106,13 @@ export default class AudioFile {
   }
 
   private resetNode(): void {
-    if (this.sourceNode) {
-      this.sourceNode.removeEventListener('ended', this.onEnded);
+    if (this.node) {
+      this.node.removeEventListener('ended', this.onEnded);
     }
 
-    this.sourceNode = AudioCore.createBufferSource();
-    this.sourceNode.buffer = this.audioBuffer;
+    this.node = this.createNode();
+    this.node.buffer = this.audioBuffer;
 
-    this.sourceNode.addEventListener('ended', this.onEnded);
+    this.node.addEventListener('ended', this.onEnded);
   }
 }

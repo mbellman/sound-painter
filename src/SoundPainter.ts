@@ -154,7 +154,8 @@ export default class SoundPainter {
     // @todo allow node chaining via base Node class
     this.delay.connect(AudioCore.getDestination());
     this.analyser.connect(this.delay.getNode());
-    this.audio.connect(this.analyser.getNode()).play();
+    this.audio.connect(this.analyser.getNode());
+    this.audio.play();
 
     this.visibleCanvas.clear();
     this.bufferCanvas.clear();
@@ -338,32 +339,10 @@ export default class SoundPainter {
 
     // @todo delay audio output and render aurally
     // active notes after preview notes
-    this.renderNotes(notes, 1.0, 0);
-
-    this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
-    this.previousNotes = notes;
-  }
-
-  private renderNotes(notes: number[], brightnessModifier: number, offset: number): void {
-    const noteHeight = window.innerHeight / notes.length;
-    const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
-    const zoom = this.zoom.getValue();
-    const zoomOffset = (window.innerHeight / 2 * (zoom - 1));
-    const spawnX = mod(this.currentXOffset + offset, this.bufferCanvas.width);
-
-    // Render new notes to buffer canvas
-    for (let i = 0; i < notes.length; i++) {
-      const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
-      const color = this.getKeyColor(i, notes[i] * brightnessModifier);
-      const drift = this.drift.getValue();
-      const xDrift = Math.random() * drift - drift / 2;
-      const yDrift = Math.random() * drift - drift / 2;
-      const radius = Math.round((255 * notes[i]) / 15);
-
-      this.bufferCanvas.circle(color, spawnX + xDrift, y + yDrift, radius);
-    }
+    this.renderNotesToBufferCanvas(notes, 0.5, 0.5, 0);
 
     // Blit buffer canvas contents to the visible canvas
+    const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
     const sx = Math.max(this.currentXOffset - visibleWidth, 0);
     const sw = Math.min(this.currentXOffset, visibleWidth) + 20;
     const dx = Math.max(visibleWidth - this.currentXOffset, 0);
@@ -404,6 +383,9 @@ export default class SoundPainter {
 
     // Superimpose "active" notes onto background
     const loudestNote = Math.max(...notes);
+    const noteHeight = window.innerHeight / notes.length;
+    const zoom = this.zoom.getValue();
+    const zoomOffset = (window.innerHeight / 2 * (zoom - 1));
 
     for (let i = 0; i < notes.length; i++) {
       const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
@@ -413,7 +395,7 @@ export default class SoundPainter {
         const brightness = Math.round(255 * notes[i]);
         const radius = Math.round(brightness / 15);
 
-        this.visibleCanvas.circle('#fff', visibleWidth + offset, y, radius);
+        this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
       }
 
       // Graph emphasis distribution
@@ -424,6 +406,27 @@ export default class SoundPainter {
       );
 
       this.visibleCanvas.circle(this.getKeyColor(11, emphasis / 15), visibleWidth + 75 - emphasis, y, emphasis / 3);
+    }
+
+    this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
+    this.previousNotes = notes;
+  }
+
+  private renderNotesToBufferCanvas(notes: number[], brightnessFactor: number, sizeFactor: number, offset: number): void {
+    const noteHeight = window.innerHeight / notes.length;
+    const zoom = this.zoom.getValue();
+    const zoomOffset = (window.innerHeight / 2 * (zoom - 1));
+    const spawnX = mod(this.currentXOffset + offset, this.bufferCanvas.width);
+
+    for (let i = 0; i < notes.length; i++) {
+      const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
+      const color = this.getKeyColor(i, notes[i] * brightnessFactor);
+      const drift = this.drift.getValue();
+      const xDrift = Math.random() * drift - drift / 2;
+      const yDrift = Math.random() * drift - drift / 2;
+      const radius = Math.round((255 * notes[i]) / 15) * sizeFactor;
+
+      this.bufferCanvas.circle(color, spawnX + xDrift, y + yDrift, radius);
     }
   }
 

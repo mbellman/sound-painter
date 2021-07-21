@@ -1,12 +1,15 @@
-export default abstract class Node<T extends AudioNode = AudioNode> {
+export default abstract class WebAudioNode<T extends AudioNode = AudioNode> {
   protected node: T;
+  protected targetNode: AudioNode;
 
   constructor() {
     this.node = this.createNode();
   }
 
-  public connect(destination: AudioNode): void {
-    this.node.connect(destination);
+  public connect(destinationNode: AudioNode): void {
+    this.node.connect(destinationNode);
+
+    this.targetNode = destinationNode;
   }
 
   public disconnect(): void {

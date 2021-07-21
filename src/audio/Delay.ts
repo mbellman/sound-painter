@@ -1,7 +1,7 @@
 import AudioCore from './AudioCore';
-import Node from './Node';
+import WebAudioNode from './WebAudioNode';
 
-export default class Delay extends Node<DelayNode> {
+export default class Delay extends WebAudioNode<DelayNode> {
   constructor(delay: number) {
     super();
 
