@@ -10,9 +10,12 @@ import { clamp, delay, gaussian, lerp, midpoint, mod, sort, sum } from './utilit
 export default class SoundPainter {
   private static readonly TOTAL_NOTES: number = 108;
   private static readonly MOVEMENT_SPEED: number = 5;
+  private static readonly PREVIEW_DELAY_FRAMES: number = 80;
   private audio: AudioFile = null;
   private analyser: Analyser;
+  private previewAnalyser: Analyser;
   private delay: Delay;
+  private previewDelay: Delay;
   private bufferCanvas: Canvas;
   private visibleCanvas: Canvas;
   private loader: Loader;
@@ -67,8 +70,8 @@ export default class SoundPainter {
         x: window.innerWidth - 220,
         y: 120
       }),
-      range: [0.2, 1.0],
-      default: 0.6
+      range: [0.5, 2.0],
+      default: 1.0
     });
 
     this.drift = new Slider({
@@ -145,16 +148,22 @@ export default class SoundPainter {
     this.audio?.stop();
     this.analyser?.disconnect();
     this.delay?.disconnect();
+    this.previewAnalyser?.disconnect();
+    this.previewDelay?.disconnect();
 
     this.audio = audioFile;
     this.analyser = new Analyser();
+    this.previewAnalyser = new Analyser();
     this.delay = new Delay(0);
+    this.previewDelay = new Delay(SoundPainter.PREVIEW_DELAY_FRAMES / 60);
     this.currentXOffset = 0;
 
     // @todo allow node chaining via base Node class
     this.delay.connect(AudioCore.getDestination());
     this.analyser.connect(this.delay.getNode());
-    this.audio.connect(this.analyser.getNode());
+    this.previewDelay.connect(this.analyser.getNode());
+    this.previewAnalyser.connect(this.previewDelay.getNode());
+    this.audio.connect(this.previewAnalyser.getNode());
     this.audio.play();
 
     this.visibleCanvas.clear();
@@ -167,15 +176,19 @@ export default class SoundPainter {
     }
   }
 
+  private createCurrentNotes(): number[] {
+    this.analyser.refreshData();
+
+    return this.createNotesFromAnalyser(this.analyser);
+  }
+
   /**
    * Converts analyser frequency data, represented as [0 - 255] decibel
    * levels at various frequencies, to notes, represented as normalized
    * [0.0 - 1.0] volumes at various musical keys.
    */
-  private createNotes(): number[] {
-    this.analyser.refreshData();
-
-    const analyserData = this.analyser.getData();
+  private createNotesFromAnalyser(analyser: Analyser): number[] {
+    const analyserData = analyser.getData();
     const notes = new Array(SoundPainter.TOTAL_NOTES);
 
     notes.fill(0);
@@ -221,7 +234,8 @@ export default class SoundPainter {
 
     for (let i = 0; i < noiseReductionRanges.length; i++) {
       const [ start, end ] = noiseReductionRanges[i];
-      const loudestNoteInRange = Math.max(...notes.slice(start, end + 1));
+      const notesInRange = notes.slice(start, end + 1);
+      const loudestNoteInRange = Math.max(...notesInRange);
 
       for (let j = start; j <= end; j++) {
         const noiseReductionFactor = Math.pow(notes[j] / loudestNoteInRange, this.noiseReduction.getValue());
@@ -240,6 +254,12 @@ export default class SoundPainter {
     }
 
     return notes;
+  }
+
+  private createPreviewNotes(): number[] {
+    this.previewAnalyser.refreshData();
+
+    return this.createNotesFromAnalyser(this.previewAnalyser);
   }
 
   private getKeyColor(key: number, loudness: number): string {
@@ -332,14 +352,15 @@ export default class SoundPainter {
       window.requestAnimationFrame(() => this.render());
     }
 
-    const notes = this.createNotes();
+    const previewNotes = this.createPreviewNotes();
+    const currentNotes = this.createCurrentNotes();
+    const previewRange = SoundPainter.MOVEMENT_SPEED * SoundPainter.PREVIEW_DELAY_FRAMES;
     
     this.visibleCanvas.clear();
     this.delay.setDelay(this.synchronization.getValue());
 
-    // @todo delay audio output and render aurally
-    // active notes after preview notes
-    this.renderNotesToBufferCanvas(notes, 0.5, 0.5, 0);
+    this.renderNotesToBufferCanvas(previewNotes, 0.3, 0.3, 0);
+    this.renderNotesToBufferCanvas(currentNotes, 0.7, 0.7, -previewRange);
 
     // Blit buffer canvas contents to the visible canvas
     const visibleWidth = Math.round(this.visibleCanvas.width * 0.75);
@@ -382,20 +403,21 @@ export default class SoundPainter {
     }
 
     // Superimpose "active" notes onto background
-    const loudestNote = Math.max(...notes);
-    const noteHeight = window.innerHeight / notes.length;
+    const loudestNote = Math.max(...currentNotes);
+    const noteHeight = window.innerHeight / currentNotes.length;
     const zoom = this.zoom.getValue();
     const zoomOffset = (window.innerHeight / 2 * (zoom - 1));
 
-    for (let i = 0; i < notes.length; i++) {
-      const y = (notes.length - i - 1) * noteHeight * zoom - zoomOffset;
+    for (let i = 0; i < currentNotes.length; i++) {
+      const y = (currentNotes.length - i - 1) * noteHeight * zoom - zoomOffset;
 
-      if (notes[i] / loudestNote > 0.5) {
+      if (currentNotes[i] / loudestNote > 0.5) {
         // Only draw active notes if they're loud enough
-        const brightness = Math.round(255 * notes[i]);
-        const radius = Math.round(brightness / 15);
+        const color = this.getKeyColor(i, currentNotes[i]);
+        const brightness = Math.round(255 * currentNotes[i]);
+        const radius = Math.round(brightness / 15) * 0.7;
 
-        this.visibleCanvas.circle('#fff', visibleWidth, y, radius);
+        this.visibleCanvas.circle(color, visibleWidth - previewRange, y, radius);
       }
 
       // Graph emphasis distribution
@@ -409,7 +431,7 @@ export default class SoundPainter {
     }
 
     this.currentXOffset = (this.currentXOffset + SoundPainter.MOVEMENT_SPEED) % this.bufferCanvas.width;
-    this.previousNotes = notes;
+    this.previousNotes = currentNotes;
   }
 
   private renderNotesToBufferCanvas(notes: number[], brightnessFactor: number, sizeFactor: number, offset: number): void {

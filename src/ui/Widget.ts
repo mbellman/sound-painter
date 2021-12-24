@@ -36,7 +36,10 @@ export default abstract class Widget<T = any> {
   }
 
   protected draggable(element: WidgetElement, handler: (e: MouseEvent) => void): void {
-    element.addEventListener('mousedown', () => {
+    element.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+
       const onMouseMove = (e: MouseEvent) => {
         handler(e);
 
