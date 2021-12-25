@@ -43,7 +43,7 @@ $handle-color-4: #80c;
       box-shadow: 0 0 0 4px rgba(150,200,255,0.2);
     }
 
-    &:active {
+    &.mousedown {
       box-shadow: 0 0 0 8px rgba(150,200,255,0.3);
       cursor: grabbing;
     }

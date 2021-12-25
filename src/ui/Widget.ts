@@ -40,6 +40,8 @@ export default abstract class Widget<T = any> {
       e.preventDefault();
       e.stopPropagation();
 
+      element.classList.add('mousedown');
+
       const onMouseMove = (e: MouseEvent) => {
         handler(e);
 
@@ -50,6 +52,8 @@ export default abstract class Widget<T = any> {
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+
+        element.classList.remove('mousedown');
       };
 
       document.addEventListener('mousemove', onMouseMove);
